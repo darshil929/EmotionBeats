@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+
+from app.dependencies import db_dependency
 
 app = FastAPI(title="EmotionBeats API")
 
@@ -19,3 +23,12 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+@app.get("/db-test")
+def db_test(db: Session = Depends(db_dependency)):
+    try:
+        # Use text() to wrap raw SQL in SQLAlchemy 2.0+
+        result = db.execute(text("SELECT 1"))
+        return {"status": "Database connection successful!"}
+    except Exception as e:
+        return {"status": "Database connection failed", "error": str(e)}
