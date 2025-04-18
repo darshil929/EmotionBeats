@@ -1,1 +1,16 @@
+# Docker volumes
+postgres_data/
+
+# Environment variables
 .env
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# OS specific
+.DS_Store
+Thumbs.db
