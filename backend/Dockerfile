@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:alpine
 
 # Set working directory
 WORKDIR /app
@@ -6,8 +6,8 @@ WORKDIR /app
 # Copy requirements file
 COPY requirements.txt .
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies with the warning suppressed
+RUN pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
 
 # Copy project files
 COPY . .

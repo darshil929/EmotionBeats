@@ -1,7 +1,10 @@
-FROM node:23-alpine
+FROM node:slim
 
 # Set working directory
 WORKDIR /app
+
+# Update npm
+RUN npm install -g npm@latest
 
 # Copy package files
 COPY package*.json ./
