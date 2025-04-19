@@ -9,11 +9,10 @@ from app.schemas.spotify import SpotifyPlaylist, SpotifyTrack, SpotifyUserProfil
 router = APIRouter(prefix="/api/spotify", tags=["spotify"])
 
 # TODO: Add proper authentication middleware
-# For now, we'll use a simple function to get a user_id from request
+# For now, use a simple function to get a user_id from request
 async def get_current_user_id(user_id: str):
-    # In a real app, this would validate a JWT token or session
     if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTingPException(status_code=401, detail="Not authenticated")
     return user_id
 
 @router.get("/me", response_model=SpotifyUserProfile)

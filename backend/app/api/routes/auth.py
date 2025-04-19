@@ -86,5 +86,4 @@ async def spotify_callback(
 @router.get("/logout")
 async def logout():
     """Log out the user."""
-    # In a real app, you'd clear the session/cookies
     return {"message": "Logged out successfully"}
