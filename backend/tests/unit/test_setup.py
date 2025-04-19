@@ -7,14 +7,14 @@ can make requests to the application.
 
 from sqlalchemy import text
 
-def test_database_connection(db):
+def test_database_connection(db_session):
     """
     Validates that the test database connection is working properly.
     
     This test ensures that the database session fixture is correctly configured
     and can execute basic SQL queries.
     """
-    result = db.execute(text("SELECT 1")).scalar()
+    result = db_session.execute(text("SELECT 1")).scalar()
     assert result == 1
 
 def test_app_health_endpoint(client):
