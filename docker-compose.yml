@@ -11,7 +11,6 @@ services:
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=https://localhost/api
-    # Hardcoded user ID
     user: "1000:1000"
     depends_on:
       - backend
@@ -29,7 +28,6 @@ services:
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
       - SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}
-    # Hardcoded user ID
     user: "1000:1000"
     depends_on:
       - db
