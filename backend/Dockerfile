@@ -3,14 +3,24 @@ FROM python:alpine
 # Set working directory
 WORKDIR /app
 
-# Copy requirements file
+# Install build dependencies (added linux-headers for psutil)
+RUN apk add --no-cache gcc musl-dev postgresql-dev linux-headers
+
+# Create directories with appropriate permissions
+RUN mkdir -p /app/tests /app/migrations && \
+    chmod -R 777 /app
+
+# Copy requirements files
 COPY requirements.txt .
 
-# Install dependencies with the warning suppressed
+# Install dependencies
 RUN pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
 
 # Copy project files
 COPY . .
+
+# Set correct permissions for all files
+RUN chmod -R 777 /app
 
 # Expose port
 EXPOSE 8000
