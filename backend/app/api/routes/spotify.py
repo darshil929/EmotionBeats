@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/spotify", tags=["spotify"])
 # For now, use a simple function to get a user_id from request
 async def get_current_user_id(user_id: str):
     if not user_id:
-        raise HTingPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Not authenticated")
     return user_id
 
 @router.get("/me", response_model=SpotifyUserProfile)
