@@ -64,7 +64,6 @@ async def spotify_callback(
             user = User(
                 username=user_profile.display_name or f"user_{user_profile.id}",
                 email=user_profile.email,
-                # In production, you'd have proper password handling
                 password_hash="dummy_hash_for_oauth_user",
                 spotify_id=user_profile.id,
                 spotify_access_token=token_data.access_token,
