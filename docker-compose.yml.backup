@@ -6,13 +6,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     volumes:
-      - ./frontend:/app:cached
+      - ./frontend:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=https://localhost/api
-    # Hardcoded user ID
-    user: "1000:1000"
     depends_on:
       - backend
     networks:
@@ -23,14 +21,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     volumes:
-      - ./backend:/app:cached
+      - ./backend:/app
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/emotionbeats
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
       - SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}
-    # Hardcoded user ID
-    user: "1000:1000"
     depends_on:
       - db
     networks:
@@ -42,8 +38,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/certs:/etc/nginx/certs
     depends_on:
       - frontend
       - backend
