@@ -1,0 +1,25 @@
+[run]
+source = app
+omit = 
+    */tests/*
+    */migrations/*
+    */alembic/*
+    */venv/*
+    */site-packages/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    raise ImportError
+    except ImportError:
+    raise HTTPException
+    if TYPE_CHECKING:
+    @abstractmethod
+
+[html]
+directory = coverage_reports
+title = EmotionBeats Test Coverage Report
