@@ -17,6 +17,9 @@ class User(Base, TimestampMixin):
     spotify_refresh_token = Column(Text, nullable=True)
     spotify_token_expiry = Column(DateTime, nullable=True)
 
+    # Role for access control - "user", "premium", or "admin"
+    role = Column(String(20), nullable=False, default="user")
+
     # Status
     is_active = Column(Boolean, default=True)
 
