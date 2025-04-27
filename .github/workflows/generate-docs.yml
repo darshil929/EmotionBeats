@@ -1,0 +1,123 @@
+name: Generate API Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/app/**'
+      - 'backend/requirements.txt'
+
+jobs:
+  generate-docs:
+    name: Generate API Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install mkdocs mkdocs-material
+      
+      - name: Generate OpenAPI schema
+        run: |
+          cd backend
+          # Create a simple script to generate OpenAPI schema
+          cat > generate_openapi.py << "EOFAPIINDEXYMLPYPY"
+          import json
+          from app.main import app
+
+          with open("openapi.json", "w") as f:
+              json.dump(app.openapi(), f, indent=2)
+          EOFAPIINDEXYMLPY
+          
+          # Run the script
+          python generate_openapi.py
+      
+      - name: Setup MkDocs
+        run: |
+          cd backend
+          mkdir -p docs
+          
+          # Create MkDocs configuration
+          cat > mkdocs.yml << 'EOFAPIINDEXYMLPY'
+          site_name: EmotionBeats API Documentation
+          theme:
+            name: material
+            palette:
+              primary: indigo
+              accent: indigo
+          nav:
+            - Home: index.md
+            - API Reference: api.md
+          EOFAPIINDEXYMLPY
+          
+          # Create index page
+          cat > docs/index.md << 'EOFAPIINDEXYMLPY'
+          # EmotionBeats API Documentation
+          
+          Welcome to the EmotionBeats API documentation. This documentation provides information about the available endpoints and how to use them.
+          
+          ## Overview
+          
+          The EmotionBeats API provides endpoints for:
+          
+          - Authentication with Spotify
+          - User profile management
+          - Music recommendations based on emotional state
+          - Playlist management
+          
+          ## Authentication
+          
+          Most API endpoints require authentication. The API uses OAuth 2.0 with Spotify for authentication.
+          EOFAPIINDEXYMLPY
+          
+          # Create API reference page
+          cat > docs/api.md << 'EOFAPIINDEXYMLPY'
+          # API Reference
+          
+          This page contains the OpenAPI specification for the EmotionBeats API.
+          
+          <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui-bundle.js"></script>
+          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui.css">
+          
+          <div id="swagger-ui"></div>
+          
+          <script>
+            window.onload = function() {
+              const ui = SwaggerUIBundle({
+                url: "./openapi.json",
+                dom_id: '#swagger-ui',
+                presets: [
+                  SwaggerUIBundle.presets.apis,
+                  SwaggerUIBundle.SwaggerUIStandalonePreset
+                ],
+                layout: "BaseLayout",
+                deepLinking: true
+              });
+              window.ui = ui;
+            };
+          </script>
+          EOFAPIINDEXYMLPY
+      
+      - name: Build documentation
+        run: |
+          cd backend
+          cp openapi.json docs/
+          mkdocs build
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./backend/site
