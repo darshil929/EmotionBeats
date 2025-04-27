@@ -29,27 +29,19 @@ jobs:
         run: |
           cd backend
           python -m pip install --upgrade pip
-          pip install flake8 black isort mypy bandit
+          pip install ruff mypy bandit
           pip install -r requirements.txt
           pip install -r requirements-test.txt
       
-      - name: Check code formatting with Black
+      - name: Check code formatting with Ruff
         run: |
           cd backend
-          black --check --line-length 88 app tests
+          ruff format --check app tests
       
-      - name: Check imports with isort
+      - name: Lint and check imports with Ruff
         run: |
           cd backend
-          isort --check --profile black app tests
-      
-      - name: Lint with flake8
-        run: |
-          cd backend
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 app tests --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings
-          flake8 app tests --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+          ruff check app tests
       
       - name: Type check with mypy
         run: |
@@ -107,6 +99,7 @@ jobs:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID || 'test_client_id' }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET || 'test_client_secret' }}
           SPOTIFY_REDIRECT_URI: https://localhost/api/auth/spotify/callback
+          TESTING: True
       
       - name: Upload coverage report
         uses: codecov/codecov-action@v3
