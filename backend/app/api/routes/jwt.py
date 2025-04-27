@@ -2,8 +2,10 @@
 JWT authentication routes for token management.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Response, Request, Body
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.db.session import get_db
 from app.db.models import User
@@ -17,11 +19,23 @@ from app.core.security import (
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+class RefreshTokenRequest(BaseModel):
+    """Request model for token refresh."""
+
+    refresh_token: Optional[str] = None
+
+
+class TokenRequest(BaseModel):
+    """Request model for token validation."""
+
+    token: Optional[str] = None
+
+
 @router.post("/token/refresh", response_model=Token)
 async def refresh_token(
+    request: Request,
     response: Response,
-    refresh_token: str = None,
-    refresh_token_cookie: str = Cookie(None),
+    data: Optional[RefreshTokenRequest] = Body(default=None),
     db: Session = Depends(get_db),
 ):
     """
@@ -29,27 +43,38 @@ async def refresh_token(
 
     Accepts refresh token from either request body or cookie.
     """
-    token = refresh_token or refresh_token_cookie
-    if not token:
+    # Extract token from request body or cookie
+    refresh_token = None
+
+    # Check if token is in request body
+    if data and data.refresh_token:
+        refresh_token = data.refresh_token
+    # If not in body, check cookies
+    elif "refresh_token" in request.cookies:
+        refresh_token = request.cookies.get("refresh_token")
+
+    # Validate token presence
+    if not refresh_token:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=401,
             detail="Refresh token is required",
         )
 
     try:
-        payload = verify_token(token, token_type="refresh")
+        # Verify the token
+        payload = verify_token(refresh_token, token_type="refresh")
         user_id = payload.get("sub")
 
         if not user_id:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+                status_code=401,
                 detail="Invalid refresh token",
             )
 
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+                status_code=401,
                 detail="User not found",
             )
 
@@ -70,33 +95,45 @@ async def refresh_token(
 
         return {
             "access_token": access_token,
-            "refresh_token": token,
+            "refresh_token": refresh_token,
             "token_type": "bearer",
         }
 
-    except ValueError:
+    except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
+            status_code=401,
+            detail=f"Invalid refresh token: {str(e)}",
         )
 
 
 @router.post("/token/validate")
-async def validate_token(token: str = None, access_token_cookie: str = Cookie(None)):
+async def validate_token(
+    request: Request, data: Optional[TokenRequest] = Body(default=None)
+):
     """
     Validate an access token.
 
     Accepts token from either request body or cookie.
     """
-    token_to_validate = token or access_token_cookie
-    if not token_to_validate:
+    # Extract token from request body or cookie
+    token = None
+
+    # Check if token is in request body
+    if data and data.token:
+        token = data.token
+    # If not in body, check cookies
+    elif "access_token" in request.cookies:
+        token = request.cookies.get("access_token")
+
+    # Validate token presence
+    if not token:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=401,
             detail="Token is required",
         )
 
     try:
-        payload = verify_token(token_to_validate)
+        payload = verify_token(token)
         return {
             "valid": True,
             "user_id": payload.get("sub"),
@@ -111,4 +148,5 @@ async def logout(response: Response):
     """Log out the user by clearing authentication cookies."""
     response.delete_cookie(key="access_token")
     response.delete_cookie(key="refresh_token")
+    response.delete_cookie(key="csrf_token")
     return {"message": "Successfully logged out"}

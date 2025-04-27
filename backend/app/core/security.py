@@ -2,7 +2,7 @@
 Security utilities for JWT authentication and password hashing.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Any, Dict
 
 from jose import jwt
@@ -39,7 +39,7 @@ def create_access_token(data: Dict[str, Any]) -> str:
     to_encode = data.copy()
 
     # Set token expiration
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire, "type": "access"})
 
     # Create and return the encoded token
@@ -59,7 +59,7 @@ def create_refresh_token(data: Dict[str, Any]) -> str:
     to_encode = data.copy()
 
     # Set token expiration
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(UTC) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire, "type": "refresh"})
 
     # Create and return the encoded token
