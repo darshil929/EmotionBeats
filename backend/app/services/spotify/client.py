@@ -1,5 +1,5 @@
 import httpx
-from typing import List, Dict, Any, Optional, cast
+from typing import List, Dict, Any, Optional
 from datetime import timedelta, datetime
 
 
