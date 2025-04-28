@@ -1,5 +1,6 @@
 import base64
 import os
+from typing import Optional
 from urllib.parse import urlencode
 import httpx
 from app.schemas.spotify import SpotifyTokenSchema
@@ -18,7 +19,7 @@ class SpotifyAuthService:
     """Service for Spotify authentication flows."""
 
     @staticmethod
-    def get_auth_url(scopes: list[str], state: str = None) -> str:
+    def get_auth_url(scopes: list[str], state: Optional[str] = None) -> str:
         """Generate the Spotify authorization URL."""
         params = {
             "client_id": SPOTIFY_CLIENT_ID,

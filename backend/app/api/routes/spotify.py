@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.db.session import get_db
 from app.services.spotify.client import SpotifyClient
@@ -81,15 +81,15 @@ async def add_tracks_to_playlist(
 
 @router.get("/recommendations", response_model=List[SpotifyTrack])
 async def get_recommendations(
-    seed_tracks: str = None,
-    seed_artists: str = None,
-    seed_genres: str = None,
+    seed_tracks: Optional[str] = None,
+    seed_artists: Optional[str] = None,
+    seed_genres: Optional[str] = None,
     limit: int = 20,
     # Target audio features for mood matching
-    target_valence: float = None,  # Positivity (0.0 to 1.0)
-    target_energy: float = None,  # Energy (0.0 to 1.0)
-    target_danceability: float = None,  # Danceability (0.0 to 1.0)
-    target_acousticness: float = None,  # Acoustic vs. electric (0.0 to 1.0)
+    target_valence: Optional[float] = None,  # Positivity (0.0 to 1.0)
+    target_energy: Optional[float] = None,  # Energy (0.0 to 1.0)
+    target_danceability: Optional[float] = None,  # Danceability (0.0 to 1.0)
+    target_acousticness: Optional[float] = None,  # Acoustic vs. electric (0.0 to 1.0)
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import timedelta
+from typing import Optional
 
 from app.db.models import User
 from app.db.session import get_db
@@ -46,8 +47,8 @@ async def spotify_login():
 async def spotify_callback(
     response: Response,
     code: str,
-    state: str = None,
-    error: str = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -74,8 +75,10 @@ async def spotify_callback(
 
         if user:
             # Update existing user
-            user.spotify_access_token = token_data.access_token
-            user.spotify_refresh_token = token_data.refresh_token
+            user.spotify_access_token = str(token_data.access_token)
+            user.spotify_refresh_token = (
+                str(token_data.refresh_token) if token_data.refresh_token else None
+            )
             user.spotify_token_expiry = utc_now() + timedelta(
                 seconds=token_data.expires_in
             )
@@ -86,8 +89,10 @@ async def spotify_callback(
                 email=user_profile.email,
                 password_hash="dummy_hash_for_oauth_user",
                 spotify_id=user_profile.id,
-                spotify_access_token=token_data.access_token,
-                spotify_refresh_token=token_data.refresh_token,
+                spotify_access_token=str(token_data.access_token),
+                spotify_refresh_token=str(token_data.refresh_token)
+                if token_data.refresh_token
+                else None,
                 spotify_token_expiry=utc_now()
                 + timedelta(seconds=token_data.expires_in),
                 is_active=True,

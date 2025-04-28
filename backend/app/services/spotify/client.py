@@ -21,7 +21,10 @@ class SpotifyClient:
     """Client for interacting with Spotify Web API."""
 
     def __init__(
-        self, access_token: str, refresh_token: str = None, expires_at: datetime = None
+        self,
+        access_token: str,
+        refresh_token: Optional[str] = None,
+        expires_at: Optional[datetime] = None,
     ):
         self.access_token = access_token
         self.refresh_token = refresh_token
@@ -44,23 +47,25 @@ class SpotifyClient:
 
             # Refresh the token
             token_data = await SpotifyAuthService.refresh_token(
-                user.spotify_refresh_token
+                str(user.spotify_refresh_token)
             )
 
             # Update user record
-            user.spotify_access_token = token_data.access_token
+            user.spotify_access_token = str(token_data.access_token)
             # Add expires_in seconds to current time
             user.spotify_token_expiry = utc_now() + timedelta(
                 seconds=token_data.expires_in
             )
             if token_data.refresh_token:
-                user.spotify_refresh_token = token_data.refresh_token
+                user.spotify_refresh_token = str(token_data.refresh_token)
 
             db.commit()
 
         return cls(
-            access_token=user.spotify_access_token,
-            refresh_token=user.spotify_refresh_token,
+            access_token=str(user.spotify_access_token),
+            refresh_token=str(user.spotify_refresh_token)
+            if user.spotify_refresh_token
+            else None,
             expires_at=user.spotify_token_expiry,
         )
 
@@ -68,9 +73,9 @@ class SpotifyClient:
         self,
         method: str,
         endpoint: str,
-        params: Dict[str, Any] = None,
-        data: Dict[str, Any] = None,
-        headers: Dict[str, str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        data: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Send a request to the Spotify API."""
         url = f"{BASE_URL}{endpoint}"
@@ -95,7 +100,7 @@ class SpotifyClient:
 
             # Handle rate limiting
             if response.status_code == 429:
-                retry_after = int(response.headers.get("Retry-After", 1))
+                retry_after = int(response.headers.get("Retry-After", "1"))
                 # In a real app, you might want to implement proper backoff here
                 raise Exception(f"Rate limited. Try again in {retry_after} seconds.")
 
