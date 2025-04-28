@@ -63,8 +63,10 @@ class SpotifyClient:
         # Extract actual datetime value from Column[datetime]
         expires_at_val = None
         if user.spotify_token_expiry:
-            # Convert SQLAlchemy Column to datetime
-            expires_at_val = datetime.fromisoformat(str(user.spotify_token_expiry))
+            expires_at_val = user.spotify_token_expiry
+            # If it's a SQLAlchemy column and not already a datetime, convert it
+            if not isinstance(expires_at_val, datetime):
+                expires_at_val = datetime.fromisoformat(str(expires_at_val))
 
         return cls(
             access_token=str(user.spotify_access_token),
@@ -161,28 +163,26 @@ class SpotifyClient:
     async def get_audio_features(self, track_id: str) -> SpotifyAudioFeatures:
         """Get audio features for a track."""
         endpoint = f"/audio-features/{track_id}"
-        api_data = await self._request("GET", endpoint)
+        data = await self._request("GET", endpoint)
 
-        # Create a new dict to avoid modifying the original data
-        processed_data = dict(api_data)
+        # Create a copy of the data for modification
+        modified_data = data.copy()
 
-        # Convert string values to integers where needed
-        if "tempo" in processed_data and isinstance(processed_data["tempo"], str):
-            processed_data["tempo"] = int(float(processed_data["tempo"]))
-        if "duration_ms" in processed_data and isinstance(
-            processed_data["duration_ms"], str
+        # Fix numeric field types
+        if "tempo" in modified_data and isinstance(modified_data["tempo"], str):
+            modified_data["tempo"] = int(float(modified_data["tempo"]))
+        if "duration_ms" in modified_data and isinstance(
+            modified_data["duration_ms"], str
         ):
-            processed_data["duration_ms"] = int(processed_data["duration_ms"])
-        if "time_signature" in processed_data and isinstance(
-            processed_data["time_signature"], str
+            modified_data["duration_ms"] = int(modified_data["duration_ms"])
+        if "time_signature" in modified_data and isinstance(
+            modified_data["time_signature"], str
         ):
-            processed_data["time_signature"] = int(processed_data["time_signature"])
-        if "loudness" in processed_data and isinstance(
-            processed_data["loudness"], float
-        ):
-            processed_data["loudness"] = int(processed_data["loudness"])
+            modified_data["time_signature"] = int(modified_data["time_signature"])
+        if "loudness" in modified_data and isinstance(modified_data["loudness"], float):
+            modified_data["loudness"] = int(modified_data["loudness"])
 
-        return SpotifyAudioFeatures(**processed_data)
+        return SpotifyAudioFeatures(**modified_data)
 
     async def get_recommendations(
         self,
