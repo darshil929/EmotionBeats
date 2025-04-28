@@ -74,10 +74,12 @@ async def spotify_callback(
         user = db.query(User).filter(User.spotify_id == user_profile.id).first()
 
         if user:
-            # Update existing user
-            user.spotify_access_token = str(token_data.access_token)
-            user.spotify_refresh_token = (
-                str(token_data.refresh_token) if token_data.refresh_token else None
+            # Update existing user - use setattr to handle SQLAlchemy Column types
+            setattr(user, "spotify_access_token", token_data.access_token)
+            setattr(
+                user,
+                "spotify_refresh_token",
+                token_data.refresh_token if token_data.refresh_token else None,
             )
             user.spotify_token_expiry = utc_now() + timedelta(
                 seconds=token_data.expires_in
@@ -89,16 +91,24 @@ async def spotify_callback(
                 email=user_profile.email,
                 password_hash="dummy_hash_for_oauth_user",
                 spotify_id=user_profile.id,
-                spotify_access_token=str(token_data.access_token),
-                spotify_refresh_token=str(token_data.refresh_token)
-                if token_data.refresh_token
-                else None,
-                spotify_token_expiry=utc_now()
-                + timedelta(seconds=token_data.expires_in),
                 is_active=True,
                 role="user",  # Default role
             )
+            # Add user to session before setting Spotify tokens
             db.add(user)
+            # Flush to generate an ID
+            db.flush()
+
+            # Now set the Spotify tokens
+            setattr(user, "spotify_access_token", token_data.access_token)
+            setattr(
+                user,
+                "spotify_refresh_token",
+                token_data.refresh_token if token_data.refresh_token else None,
+            )
+            user.spotify_token_expiry = utc_now() + timedelta(
+                seconds=token_data.expires_in
+            )
 
         db.commit()
 

@@ -1,5 +1,5 @@
 import httpx
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, cast
 from datetime import timedelta, datetime
 
 
@@ -50,23 +50,33 @@ class SpotifyClient:
                 str(user.spotify_refresh_token)
             )
 
-            # Update user record
-            user.spotify_access_token = str(token_data.access_token)
+            # Update user record - use setattr to avoid Column type issues
+            setattr(user, "spotify_access_token", token_data.access_token)
             # Add expires_in seconds to current time
             user.spotify_token_expiry = utc_now() + timedelta(
                 seconds=token_data.expires_in
             )
             if token_data.refresh_token:
-                user.spotify_refresh_token = str(token_data.refresh_token)
+                setattr(user, "spotify_refresh_token", token_data.refresh_token)
 
             db.commit()
+
+        # Extract actual datetime value from Column[datetime]
+        expires_at_val = None
+        if user.spotify_token_expiry:
+            # Extract datetime value from SQLAlchemy Column
+            if hasattr(user.spotify_token_expiry, "_sa_instance_state"):
+                expires_at_val = user.spotify_token_expiry
+            else:
+                # If it's already a datetime object
+                expires_at_val = cast(datetime, user.spotify_token_expiry)
 
         return cls(
             access_token=str(user.spotify_access_token),
             refresh_token=str(user.spotify_refresh_token)
             if user.spotify_refresh_token
             else None,
-            expires_at=user.spotify_token_expiry,
+            expires_at=expires_at_val,
         )
 
     async def _request(
@@ -157,6 +167,17 @@ class SpotifyClient:
         """Get audio features for a track."""
         endpoint = f"/audio-features/{track_id}"
         data = await self._request("GET", endpoint)
+
+        # Fix the type conversion issues - ensure numeric fields are proper type
+        if "tempo" in data and isinstance(data["tempo"], str):
+            data["tempo"] = int(float(data["tempo"]))
+        if "duration_ms" in data and isinstance(data["duration_ms"], str):
+            data["duration_ms"] = int(data["duration_ms"])
+        if "time_signature" in data and isinstance(data["time_signature"], str):
+            data["time_signature"] = int(data["time_signature"])
+        if "loudness" in data and isinstance(data["loudness"], float):
+            data["loudness"] = int(data["loudness"])
+
         return SpotifyAudioFeatures(**data)
 
     async def get_recommendations(
