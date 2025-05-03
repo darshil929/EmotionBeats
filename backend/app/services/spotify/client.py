@@ -21,7 +21,10 @@ class SpotifyClient:
     """Client for interacting with Spotify Web API."""
 
     def __init__(
-        self, access_token: str, refresh_token: str = None, expires_at: datetime = None
+        self,
+        access_token: str,
+        refresh_token: Optional[str] = None,
+        expires_at: Optional[datetime] = None,
     ):
         self.access_token = access_token
         self.refresh_token = refresh_token
@@ -44,33 +47,39 @@ class SpotifyClient:
 
             # Refresh the token
             token_data = await SpotifyAuthService.refresh_token(
-                user.spotify_refresh_token
+                str(user.spotify_refresh_token)
             )
 
             # Update user record
-            user.spotify_access_token = token_data.access_token
-            # Add expires_in seconds to current time
-            user.spotify_token_expiry = utc_now() + timedelta(
-                seconds=token_data.expires_in
-            )
+            setattr(user, "spotify_access_token", token_data.access_token)
+            expiry_time = utc_now() + timedelta(seconds=token_data.expires_in)
+            setattr(user, "spotify_token_expiry", expiry_time)
             if token_data.refresh_token:
-                user.spotify_refresh_token = token_data.refresh_token
+                setattr(user, "spotify_refresh_token", token_data.refresh_token)
 
             db.commit()
 
+        expires_at_val = None
+        if user.spotify_token_expiry:
+            expires_at_val = user.spotify_token_expiry
+            if not isinstance(expires_at_val, datetime):
+                expires_at_val = datetime.fromisoformat(str(expires_at_val))
+
         return cls(
-            access_token=user.spotify_access_token,
-            refresh_token=user.spotify_refresh_token,
-            expires_at=user.spotify_token_expiry,
+            access_token=str(user.spotify_access_token),
+            refresh_token=str(user.spotify_refresh_token)
+            if user.spotify_refresh_token
+            else None,
+            expires_at=expires_at_val,
         )
 
     async def _request(
         self,
         method: str,
         endpoint: str,
-        params: Dict[str, Any] = None,
-        data: Dict[str, Any] = None,
-        headers: Dict[str, str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        data: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Send a request to the Spotify API."""
         url = f"{BASE_URL}{endpoint}"
@@ -95,8 +104,7 @@ class SpotifyClient:
 
             # Handle rate limiting
             if response.status_code == 429:
-                retry_after = int(response.headers.get("Retry-After", 1))
-                # In a real app, you might want to implement proper backoff here
+                retry_after = int(response.headers.get("Retry-After", "1"))
                 raise Exception(f"Rate limited. Try again in {retry_after} seconds.")
 
             response.raise_for_status()
@@ -152,7 +160,25 @@ class SpotifyClient:
         """Get audio features for a track."""
         endpoint = f"/audio-features/{track_id}"
         data = await self._request("GET", endpoint)
-        return SpotifyAudioFeatures(**data)
+
+        # Create a copy of the data for modification
+        modified_data = data.copy()
+
+        # Fix numeric field types
+        if "tempo" in modified_data and isinstance(modified_data["tempo"], str):
+            modified_data["tempo"] = int(float(modified_data["tempo"]))
+        if "duration_ms" in modified_data and isinstance(
+            modified_data["duration_ms"], str
+        ):
+            modified_data["duration_ms"] = int(modified_data["duration_ms"])
+        if "time_signature" in modified_data and isinstance(
+            modified_data["time_signature"], str
+        ):
+            modified_data["time_signature"] = int(modified_data["time_signature"])
+        if "loudness" in modified_data and isinstance(modified_data["loudness"], float):
+            modified_data["loudness"] = int(modified_data["loudness"])
+
+        return SpotifyAudioFeatures(**modified_data)
 
     async def get_recommendations(
         self,

@@ -11,7 +11,7 @@ class Base(DeclarativeBase):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     @declared_attr
-    def __tablename__(cls) -> str:
+    def __tablename__(cls):
         return cls.__name__.lower()
 
 
