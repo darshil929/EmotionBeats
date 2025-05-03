@@ -50,9 +50,8 @@ class SpotifyClient:
                 str(user.spotify_refresh_token)
             )
 
-            # Update user record - use setattr to avoid Column type issues
+            # Update user record
             setattr(user, "spotify_access_token", token_data.access_token)
-            # Add expires_in seconds to current time
             expiry_time = utc_now() + timedelta(seconds=token_data.expires_in)
             setattr(user, "spotify_token_expiry", expiry_time)
             if token_data.refresh_token:
@@ -60,11 +59,9 @@ class SpotifyClient:
 
             db.commit()
 
-        # Extract actual datetime value from Column[datetime]
         expires_at_val = None
         if user.spotify_token_expiry:
             expires_at_val = user.spotify_token_expiry
-            # If it's a SQLAlchemy column and not already a datetime, convert it
             if not isinstance(expires_at_val, datetime):
                 expires_at_val = datetime.fromisoformat(str(expires_at_val))
 
@@ -108,7 +105,6 @@ class SpotifyClient:
             # Handle rate limiting
             if response.status_code == 429:
                 retry_after = int(response.headers.get("Retry-After", "1"))
-                # In a real app, you might want to implement proper backoff here
                 raise Exception(f"Rate limited. Try again in {retry_after} seconds.")
 
             response.raise_for_status()
