@@ -6,6 +6,7 @@ This module tests the authentication flow with Spotify OAuth.
 
 import pytest
 from unittest.mock import patch
+from fastapi.responses import Response
 from fastapi.routing import APIRoute
 
 from app.db.models import User
@@ -138,8 +139,11 @@ def test_spotify_callback_creates_new_user(
     # Call the callback function directly with mocked dependencies
     import asyncio
 
+    mock_response = Response()
     response = asyncio.run(
-        spotify_callback(code="test_code", state="test_state", db=db_session)
+        spotify_callback(
+            response=mock_response, code="test_code", state="test_state", db=db_session
+        )
     )
 
     # Verify response is a redirect (307 is Temporary Redirect)
@@ -203,8 +207,11 @@ def test_spotify_callback_updates_existing_user(
     # Call the callback function directly with mocked dependencies
     import asyncio
 
+    mock_response = Response()
     response = asyncio.run(
-        spotify_callback(code="test_code", state="test_state", db=db_session)
+        spotify_callback(
+            response=mock_response, code="test_code", state="test_state", db=db_session
+        )
     )
 
     # Verify response is a redirect
@@ -277,9 +284,16 @@ def test_spotify_callback_handles_profile_exception(
     # Call the callback function directly with mocked dependencies
     import asyncio
 
+    mock_response = Response()
+
     try:
         # This should raise an exception
-        asyncio.run(spotify_callback(code="test_code", state="test_state", db=None))
+        mock_response = Response()
+        asyncio.run(
+            spotify_callback(
+                response=mock_response, code="test_code", state="test_state", db=None
+            )
+        )
         assert False, "Expected an exception but none was raised"
     except Exception as e:
         assert "Profile error" in str(e)
@@ -325,8 +339,11 @@ def test_spotify_callback_redirects_to_frontend(
     # Call the callback function directly with mocked dependencies
     import asyncio
 
+    mock_response = Response()
     response = asyncio.run(
-        spotify_callback(code="test_code", state="test_state", db=db_session)
+        spotify_callback(
+            response=mock_response, code="test_code", state="test_state", db=db_session
+        )
     )
 
     # Should redirect to frontend

@@ -5,6 +5,7 @@ pytest-cov==4.1.0
 httpx==0.28.1
 asgi-lifespan==2.1.0
 faker==19.13.0
+bcrypt>=4.0.1
 # Database testing
 pytest-postgresql==5.0.0
 sqlalchemy-utils==0.41.1
