@@ -33,3 +33,5 @@ htmlcov/
 # Build outputs
 dist/
 build/
+
+.ruff_cache
