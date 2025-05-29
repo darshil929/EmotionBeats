@@ -10,5 +10,10 @@ python-jose>=3.3.0
 passlib>=1.7.4
 python-multipart>=0.0.6
 spotipy>=2.22.1
-python-socketio>=5.8.0
 bcrypt>=4.0.1
+
+# Socket.io and real-time communication dependencies
+python-socketio>=5.8.0
+python-engineio>=4.7.0
+redis>=4.5.0
+aioredis>=2.0.0

@@ -7,6 +7,7 @@ services:
       dockerfile: Dockerfile.test
     depends_on:
       - db
+      - redis
     networks:
       - emotionbeats-network
     volumes:
@@ -14,7 +15,10 @@ services:
     command: sh -c "sleep 5 && python -m pytest -v tests/"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+      - REDIS_URL=redis://redis:6379/0
+      - SOCKETIO_REDIS_URL=redis://redis:6379/1
       - JWT_SECRET_KEY=testsecretkey
+      - TESTING=True
 
   db:
     image: postgres:15-alpine
@@ -24,6 +28,12 @@ services:
       - POSTGRES_DB=postgres
     networks:
       - emotionbeats-network
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - emotionbeats-network
+    command: redis-server --appendonly no --maxmemory 128mb --maxmemory-policy allkeys-lru
 
 networks:
   emotionbeats-network:

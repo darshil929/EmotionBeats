@@ -29,9 +29,16 @@ services:
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
       - SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - SOCKETIO_REDIS_URL=redis://redis:6379/1
+      - SOCKETIO_CORS_ORIGINS=["http://localhost:3000", "https://localhost"]
+      - SOCKETIO_PING_TIMEOUT=60
+      - SOCKETIO_PING_INTERVAL=25
+      - ENVIRONMENT=development
     user: "1000:1000"
     depends_on:
       - db
+      - redis
     networks:
       - emotionbeats-network
 
@@ -60,9 +67,19 @@ services:
     networks:
       - emotionbeats-network
 
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - emotionbeats-network
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+
 networks:
   emotionbeats-network:
     driver: bridge
 
 volumes:
   postgres_data:
+  redis_data:
