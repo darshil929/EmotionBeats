@@ -1,17 +1,26 @@
-FROM python:alpine
+FROM python:3.13-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache gcc musl-dev postgresql-dev linux-headers
+# Install build dependencies (same as main Dockerfile for consistency)
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    postgresql-dev \
+    linux-headers \
+    libffi-dev \
+    openssl-dev \
+    cargo \
+    rust
 
 # Copy requirements files first
 COPY requirements.txt requirements-test.txt ./
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir -r requirements-test.txt
+# Upgrade pip and install dependencies
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -r requirements-test.txt
 
 # Copy application code
 COPY . .
@@ -22,3 +31,7 @@ RUN echo '[pytest]' > /app/pytest.ini \
     && echo 'python_files = test_*.py' >> /app/pytest.ini \
     && echo 'python_classes = Test*' >> /app/pytest.ini \
     && echo 'python_functions = test_*' >> /app/pytest.ini
+
+# Set Python environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1

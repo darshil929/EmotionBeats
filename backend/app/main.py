@@ -87,7 +87,11 @@ app = FastAPI(
 # Configure CORS middleware for both HTTP and WebSocket connections
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://localhost", "http://localhost:3000"],
+    allow_origins=[
+        "https://localhost",
+        "http://localhost:3000",
+        "*",
+    ],  # Added * for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -169,12 +173,10 @@ async def health_check():
         health_status["services"]["api"] = {"status": "healthy"}
 
         # Check Socket.io server
-        from app.services.socketio.server import get_socketio_server
+        from app.services.socketio.server import validate_socketio_health
 
-        sio = get_socketio_server()
-        health_status["services"]["socketio"] = {
-            "status": "healthy" if sio else "unavailable"
-        }
+        socketio_health = validate_socketio_health()
+        health_status["services"]["socketio"] = socketio_health
 
         # Check Redis connections
         redis_status = await health_check_redis()
@@ -208,6 +210,36 @@ async def health_check():
         health_status["error"] = str(e)
 
     return health_status
+
+
+@app.get("/socket.io/health")
+async def socketio_health_check():
+    """
+    Socket.io specific health check endpoint.
+
+    Returns detailed status information about the Socket.io server
+    for debugging and monitoring purposes.
+    """
+    try:
+        from app.services.socketio.server import validate_socketio_health
+
+        health_status = validate_socketio_health()
+
+        # Log the health check for debugging
+        logger.info(f"Socket.io health check: {health_status}")
+
+        return health_status
+
+    except Exception as e:
+        logger.error(f"Socket.io health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "available": False,
+            "async_mode": None,
+            "manager_type": None,
+            "server_type": None,
+        }
 
 
 @app.get("/db-test")
@@ -294,13 +326,14 @@ async def system_info():
                 "name": "EmotionBeats API",
                 "version": "1.0.0",
                 "environment": "development",  # Could be from env var
-                "python_version": "3.11+",
+                "python_version": "3.13+",
             },
             "services": {
                 "fastapi": {"status": "active", "version": "0.95.0+"},
                 "socketio": {
                     "status": "active" if sio else "inactive",
-                    "version": "5.8.0+",
+                    "version": "5.11.0+",
+                    "engineio_version": "4.9.0+",
                 },
                 "redis": {
                     "cache": redis_status["cache"],

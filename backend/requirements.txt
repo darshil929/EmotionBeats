@@ -13,7 +13,7 @@ spotipy>=2.22.1
 bcrypt>=4.0.1
 
 # Socket.io and real-time communication dependencies
-python-socketio>=5.8.0
-python-engineio>=4.7.0
+python-socketio>=5.11.0
+python-engineio>=4.9.0
 redis>=4.5.0
 aioredis>=2.0.0

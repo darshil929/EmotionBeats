@@ -1,10 +1,19 @@
-FROM python:alpine
+FROM python:3.13-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Install build dependencies (added linux-headers for psutil)
-RUN apk add --no-cache gcc musl-dev postgresql-dev linux-headers
+# Install build dependencies and curl for health checks
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    postgresql-dev \
+    linux-headers \
+    libffi-dev \
+    openssl-dev \
+    cargo \
+    rust \
+    curl
 
 # Create directories with appropriate permissions
 RUN mkdir -p /app/tests /app/migrations && \
@@ -13,14 +22,19 @@ RUN mkdir -p /app/tests /app/migrations && \
 # Copy requirements files
 COPY requirements.txt .
 
-# Install dependencies
-RUN pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
+# Upgrade pip and install dependencies
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
 
 # Copy project files
 COPY . .
 
 # Set correct permissions for all files
 RUN chmod -R 777 /app
+
+# Set Python environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
 # Expose port
 EXPOSE 8000

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket.io Test - EmotionBeats (Debug Version)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .debug { background-color: #fff3cd; color: #856404; }
+        input[type="text"] { padding: 8px; margin: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 16px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        #events-log { background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; font-family: monospace; font-size: 14px; }
+        .log-entry { margin: 2px 0; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        .debug-section { background-color: #e9ecef; padding: 15px; border-radius: 5px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎵 EmotionBeats Socket.io Debug Test</h1>
+    
+    <div id="connection-status" class="status disconnected">❌ Disconnected</div>
+    
+    <div class="debug-section">
+        <h3>🔍 Debug Information</h3>
+        <button onclick="checkBackendHealth()">🏥 Check Backend Health</button>
+        <button onclick="checkSocketIOHealth()">🔌 Check Socket.io Health</button>
+        <button onclick="testConnection()">🧪 Test Connection (No Auth)</button>
+        <div id="debug-info" style="margin-top: 10px; font-family: monospace; font-size: 12px;"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h3>📋 Step 1: Authentication</h3>
+        <label><strong>JWT Token:</strong></label><br>
+        <input type="text" id="token-input" placeholder="Paste your JWT token here (optional for basic test)" style="width: 70%;">
+        <button onclick="connect()">🔗 Connect</button>
+        <button onclick="connectNoAuth()">🔗 Connect (No Auth)</button>
+        <button onclick="disconnect()">❌ Disconnect</button>
+    </div>
+    
+    <div class="debug-section">
+        <h3>📋 Step 2: Join Chat Session</h3>
+        <label><strong>Session ID (UUID):</strong></label><br>
+        <input type="text" id="session-input" placeholder="Enter session UUID">
+        <button onclick="joinSession()">🚪 Join Session</button>
+        <button onclick="leaveSession()">🚪 Leave Session</button>
+    </div>
+    
+    <div class="debug-section">
+        <h3>📋 Step 3: Real-time Messaging</h3>
+        <label><strong>Message:</strong></label><br>
+        <input type="text" id="message-input" placeholder="Type your message here" style="width: 50%;">
+        <button onclick="sendMessage()">📤 Send Message</button><br><br>
+        <button onclick="startTyping()">⌨️ Start Typing</button>
+        <button onclick="stopTyping()">⌨️ Stop Typing</button>
+    </div>
+    
+    <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h3>📊 Events Log</h3>
+        <button onclick="clearLog()" style="float: right;">🗑️ Clear Log</button>
+        <div id="events-log" style="height: 400px; overflow-y: scroll; clear: both;">
+            <div class="log-entry info">[Ready] Debug version - testing Socket.io connection...</div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentSessionId = null;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('events-log');
+            const className = type === 'success' ? 'success' : 
+                             type === 'error' ? 'error' : 
+                             type === 'warning' ? 'warning' : 'info';
+            logDiv.innerHTML += `<div class="log-entry ${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateDebugInfo(info) {
+            document.getElementById('debug-info').innerHTML = `<pre>${JSON.stringify(info, null, 2)}</pre>`;
+        }
+
+        function updateConnectionStatus(connected, message = '') {
+            const statusDiv = document.getElementById('connection-status');
+            if (connected) {
+                statusDiv.textContent = `✅ Connected to EmotionBeats ${message}`;
+                statusDiv.className = 'status connected';
+            } else {
+                statusDiv.textContent = `❌ Disconnected ${message}`;
+                statusDiv.className = 'status disconnected';
+            }
+        }
+
+        async function checkBackendHealth() {
+            try {
+                log('🏥 Checking backend health...', 'info');
+                const response = await fetch('http://localhost:8000/health');
+                const data = await response.json();
+                log(`✅ Backend health: ${JSON.stringify(data)}`, 'success');
+                updateDebugInfo({backend_health: data});
+            } catch (error) {
+                log(`❌ Backend health check failed: ${error.message}`, 'error');
+                updateDebugInfo({backend_error: error.message});
+            }
+        }
+
+        async function checkSocketIOHealth() {
+            try {
+                log('🔌 Checking Socket.io health...', 'info');
+                const response = await fetch('http://localhost:8000/socket.io/health');
+                const data = await response.json();
+                log(`✅ Socket.io health: ${JSON.stringify(data)}`, 'success');
+                updateDebugInfo({socketio_health: data});
+            } catch (error) {
+                log(`❌ Socket.io health check failed: ${error.message}`, 'error');
+                updateDebugInfo({socketio_error: error.message});
+            }
+        }
+
+        function testConnection() {
+            log('🧪 Testing basic Socket.io connection (no auth)...', 'info');
+            
+            // Test basic connection
+            const testSocket = io('http://localhost:8000', {
+                transports: ['websocket', 'polling'],
+                timeout: 5000
+            });
+
+            testSocket.on('connect', () => {
+                log('✅ Basic Socket.io connection successful!', 'success');
+                testSocket.disconnect();
+            });
+
+            testSocket.on('connect_error', (error) => {
+                log(`❌ Basic connection failed: ${error.message}`, 'error');
+                updateDebugInfo({connection_error: error.message, error_type: error.type});
+            });
+
+            testSocket.on('disconnect', () => {
+                log('🔌 Basic test connection closed', 'info');
+            });
+        }
+
+        function connectNoAuth() {
+            log('🔗 Attempting to connect without authentication...', 'info');
+
+            socket = io('http://localhost:8000', {
+                transports: ['websocket', 'polling'],
+                timeout: 10000,
+                forceNew: true
+            });
+
+            setupSocketListeners();
+        }
+
+        function connect() {
+            const token = document.getElementById('token-input').value.trim();
+            
+            log('🔗 Attempting to connect to Socket.io server...', 'info');
+            if (token) {
+                log('🔑 Using JWT token for authentication', 'info');
+            } else {
+                log('⚠️ No JWT token provided - trying anonymous connection', 'warning');
+            }
+
+            // Connect to Socket.io server
+            const auth = token ? { token: token } : {};
+            socket = io('http://localhost:8000', {
+                auth: auth,
+                transports: ['websocket', 'polling'],
+                timeout: 10000,
+                forceNew: true
+            });
+
+            setupSocketListeners();
+        }
+
+        function setupSocketListeners() {
+            // Connection events
+            socket.on('connect', () => {
+                updateConnectionStatus(true);
+                log('✅ Connected to Socket.io server successfully!', 'success');
+                log(`📊 Socket ID: ${socket.id}`, 'info');
+            });
+
+            socket.on('disconnect', (reason) => {
+                updateConnectionStatus(false, `(${reason})`);
+                currentSessionId = null;
+                log(`❌ Disconnected from server: ${reason}`, 'error');
+            });
+
+            socket.on('connect_error', (error) => {
+                updateConnectionStatus(false);
+                log(`❌ Connection error: ${error.message}`, 'error');
+                updateDebugInfo({
+                    error_message: error.message,
+                    error_type: error.type,
+                    error_description: error.description
+                });
+            });
+
+            // Authentication events
+            socket.on('connected', (data) => {
+                log(`✅ Authentication successful! Welcome ${data.username} (ID: ${data.user_id})`, 'success');
+            });
+
+            socket.on('auth_error', (data) => {
+                log(`❌ Authentication failed: ${JSON.stringify(data)}`, 'error');
+                updateConnectionStatus(false);
+            });
+
+            // Room events
+            socket.on('joined_session', (data) => {
+                currentSessionId = data.session_id;
+                log(`✅ Successfully joined chat session: ${data.session_id}`, 'success');
+            });
+
+            socket.on('left_session', (data) => {
+                currentSessionId = null;
+                log(`✅ Successfully left chat session: ${data.session_id}`, 'success');
+            });
+
+            socket.on('user_joined', (data) => {
+                log(`👤 User joined session: ${data.user_id}`, 'info');
+            });
+
+            socket.on('user_left', (data) => {
+                log(`👤 User left session: ${data.user_id}`, 'info');
+            });
+
+            // Message events
+            socket.on('new_message', (data) => {
+                log(`💬 ${data.username}: ${data.content}`, 'info');
+            });
+
+            socket.on('message_sent', (data) => {
+                log(`✅ Message sent successfully (ID: ${data.message_id})`, 'success');
+            });
+
+            // Typing events
+            socket.on('user_typing', (data) => {
+                const status = data.is_typing ? 'started typing' : 'stopped typing';
+                log(`⌨️ ${data.username} ${status}`, 'info');
+            });
+
+            // Error events
+            socket.on('join_error', (data) => {
+                log(`❌ Join error: ${data.error}`, 'error');
+            });
+
+            socket.on('message_error', (data) => {
+                log(`❌ Message error: ${data.error}`, 'error');
+            });
+
+            socket.on('rate_limit_error', (data) => {
+                log(`⚠️ Rate limit exceeded! Wait ${data.retry_after} seconds`, 'warning');
+            });
+
+            socket.on('server_error', (data) => {
+                log(`❌ Server error: ${data.error}`, 'error');
+            });
+
+            socket.on('connection_error', (data) => {
+                log(`❌ Connection error: ${data.error}`, 'error');
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                updateConnectionStatus(false);
+                currentSessionId = null;
+                log('🔌 Manually disconnected', 'info');
+            }
+        }
+
+        function joinSession() {
+            const sessionId = document.getElementById('session-input').value.trim();
+            if (!socket) {
+                alert('❌ Please connect to the server first!');
+                return;
+            }
+            if (!sessionId) {
+                alert('❌ Please enter a session ID!');
+                return;
+            }
+
+            socket.emit('join_chat_session', { session_id: sessionId });
+            log(`🚪 Attempting to join session: ${sessionId}`, 'info');
+        }
+
+        function leaveSession() {
+            if (!socket) {
+                alert('❌ Please connect to the server first!');
+                return;
+            }
+            if (!currentSessionId) {
+                alert('❌ You are not in any session!');
+                return;
+            }
+
+            socket.emit('leave_chat_session', { session_id: currentSessionId });
+            log(`🚪 Attempting to leave session: ${currentSessionId}`, 'info');
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('message-input').value.trim();
+            if (!socket) {
+                alert('❌ Please connect to the server first!');
+                return;
+            }
+            if (!currentSessionId) {
+                alert('❌ Please join a session first!');
+                return;
+            }
+            if (!message) {
+                alert('❌ Please enter a message!');
+                return;
+            }
+
+            socket.emit('send_message', {
+                session_id: currentSessionId,
+                content: message
+            });
+            
+            document.getElementById('message-input').value = '';
+            log(`📤 Sending message: "${message}"`, 'info');
+        }
+
+        function startTyping() {
+            if (!socket || !currentSessionId) {
+                alert('❌ Please connect and join a session first!');
+                return;
+            }
+
+            socket.emit('typing_start', { session_id: currentSessionId });
+            log(`⌨️ Started typing indicator`, 'info');
+        }
+
+        function stopTyping() {
+            if (!socket || !currentSessionId) {
+                alert('❌ Please connect and join a session first!');
+                return;
+            }
+
+            socket.emit('typing_stop', { session_id: currentSessionId });
+            log(`⌨️ Stopped typing indicator`, 'info');
+        }
+
+        function clearLog() {
+            document.getElementById('events-log').innerHTML = '<div class="log-entry info">[Ready] Log cleared...</div>';
+        }
+
+        // Auto-fill with sample session ID
+        document.getElementById('session-input').value = '12345678-1234-1234-1234-123456789012';
+        
+        // Auto-run health checks on page load
+        window.onload = function() {
+            setTimeout(() => {
+                checkBackendHealth();
+                setTimeout(() => {
+                    checkSocketIOHealth();
+                }, 1000);
+            }, 500);
+        };
+        
+        // Enter key support
+        document.getElementById('message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        document.getElementById('token-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                connect();
+            }
+        });
+    </script>
+</body>
+</html>
