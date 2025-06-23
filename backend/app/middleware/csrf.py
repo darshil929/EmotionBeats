@@ -62,6 +62,25 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
             return response
 
+        # Skip CSRF check for chat endpoints during development
+        if os.getenv("ENVIRONMENT") == "development" and request.url.path.startswith(
+            "/api/chat/"
+        ):
+            response = await call_next(request)
+
+            # Ensure CSRF cookie exists
+            if self.cookie_name not in request.cookies:
+                csrf_token = self.generate_csrf_token()
+                response.set_cookie(
+                    key=self.cookie_name,
+                    value=csrf_token,
+                    httponly=False,  # Must be accessible to JavaScript
+                    secure=True,
+                    samesite="lax",
+                )
+
+            return response
+
         # Skip CSRF check for safe methods
         if request.method in self.safe_methods:
             response = await call_next(request)

@@ -5,7 +5,7 @@ Dependency injection functions for the API.
 from fastapi import Depends, HTTPException, Cookie, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Dict, Any, Tuple
 
 from app.db.session import get_db
 from app.db.models import User
@@ -108,3 +108,90 @@ async def get_admin_user(user: User = Depends(get_current_user)) -> User:
             detail="Admin privileges required",
         )
     return user
+
+
+async def validate_socket_token(
+    token: str, db: Session
+) -> Tuple[bool, Optional[Dict[str, Any]]]:
+    """
+    Validate a JWT token for Socket.io connections.
+
+    Args:
+        token: JWT token to validate
+        db: Database session
+
+    Returns:
+        Tuple of (is_valid, user_data)
+    """
+    try:
+        # Verify the token
+        payload = verify_token(token)
+        user_id = payload.get("sub")
+
+        if not user_id:
+            return False, None
+
+        # Get the user from the database
+        user = db.query(User).filter(User.id == user_id).first()
+
+        if not user or not user.is_active:
+            return False, None
+
+        # Return user data for Socket.io session
+        return True, {"user_id": str(user.id), "role": user.role, "authenticated": True}
+
+    except Exception:
+        return False, None
+
+
+async def socketio_auth(sid: str, environ: Dict[str, Any], db: Session) -> bool:
+    """
+    Authenticate a Socket.io connection.
+
+    This function is used by the Socket.io server to authenticate
+    connections before allowing them.
+
+    Args:
+        sid: Socket.io session ID
+        environ: WSGI environment dict, containing headers
+        db: Database session
+
+    Returns:
+        True if authenticated, False otherwise
+    """
+    try:
+        # Extract token from query parameters or headers
+        query = environ.get("QUERY_STRING", "")
+        headers = environ.get("HTTP_AUTHORIZATION", "")
+
+        token = None
+
+        # Try to get token from Authorization header
+        if headers.startswith("Bearer "):
+            token = headers[7:]  # Remove "Bearer " prefix
+
+        # If not in headers, try to get from query string
+        if not token:
+            import urllib.parse
+
+            params = dict(urllib.parse.parse_qsl(query))
+            token = params.get("token")
+
+        # If token found, validate it
+        if token:
+            is_valid, user_data = await validate_socket_token(token, db)
+
+            if is_valid and user_data:
+                # Import Socket.io server here to avoid circular imports
+                from app.services.socketio.server import SocketIOServer
+
+                sio = SocketIOServer().get_server()
+
+                # Store user data in Socket.io session
+                await sio.save_session(sid, user_data)
+                return True
+
+        return False
+
+    except Exception:
+        return False

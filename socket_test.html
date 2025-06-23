@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EmotionBeats Socket.io Test</title>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .panel { border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin-bottom: 20px; }
+        .log { height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; font-family: monospace; font-size: 12px; }
+        .status { font-weight: bold; }
+        .connected { color: green; }
+        .error { color: red; }
+        input[type="text"] { width: 100%; padding: 8px; margin-bottom: 10px; }
+        button { padding: 8px 15px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .messages { height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        .message { padding: 8px; margin-bottom: 5px; border-radius: 4px; }
+        .message.user { background-color: #e3f2fd; text-align: right; }
+        .message.ai { background-color: #f5f5f5; }
+    </style>
+</head>
+<body>
+    <h1>EmotionBeats Socket.io Test</h1>
+    <p>Status: <span id="status" class="status error">Disconnected</span></p>
+    
+    <div class="panel">
+        <h3>Connection</h3>
+        <div>
+            <label for="url-input">Server URL:</label>
+            <input type="text" id="url-input" value="https://localhost" />
+        </div>
+        <div>
+            <label for="token-input">JWT Token:</label>
+            <input type="text" id="token-input" placeholder="JWT Token" />
+        </div>
+        <button id="connect-btn">Connect</button>
+    </div>
+    
+    <div class="log" id="log"></div>
+    
+    <div class="panel" id="session-panel" style="display: none;">
+        <h3>Chat Session</h3>
+        <input type="text" id="session-input" placeholder="Session ID" />
+        <button id="join-btn">Join Session</button>
+        
+        <div class="messages" id="messages"></div>
+        
+        <div id="message-form" style="display: none;">
+            <input type="text" id="message-input" placeholder="Type a message..." />
+            <button id="send-btn">Send</button>
+        </div>
+    </div>
+    
+    <script>
+        // Helper functions
+        function log(message) {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(message, isError = true) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = isError ? 'status error' : 'status connected';
+        }
+        
+        // Connect button
+        document.getElementById('connect-btn').addEventListener('click', function() {
+            const serverUrl = document.getElementById('url-input').value.trim();
+            const token = document.getElementById('token-input').value.trim();
+            
+            if (!token) {
+                log('Error: Token is required');
+                return;
+            }
+            
+            log(`Connecting to Socket.io server at ${serverUrl}...`);
+            updateStatus('Connecting...', false);
+            
+            try {
+                // Disconnect existing socket if any
+                if (window.socket && window.socket.connected) {
+                    window.socket.disconnect();
+                }
+                
+                // Production-ready connection - will work with K8s and scaling
+                const socket = io(serverUrl, {
+                    path: '/ws/socket.io/',
+                    // Try both transport types for maximum compatibility
+                    transports: ['polling', 'websocket'],
+                    auth: {
+                        token: token
+                    },
+                    query: {
+                        token: token  // Include token in query string as well
+                    },
+                    reconnection: true,
+                    reconnectionAttempts: 5,
+                    reconnectionDelay: 1000,
+                    timeout: 20000
+                });
+                
+                // Store for later use
+                window.socket = socket;
+                
+                // Connection events
+                socket.on('connect', function() {
+                    log('Connected successfully!');
+                    updateStatus('Connected', false);
+                    document.getElementById('session-panel').style.display = 'block';
+                });
+                
+                socket.on('connect_error', function(err) {
+                    log(`Connection error: ${err.message}`);
+                    updateStatus(`Error: ${err.message}`, true);
+                });
+                
+                socket.on('disconnect', function(reason) {
+                    log(`Disconnected: ${reason}`);
+                    updateStatus('Disconnected', true);
+                    document.getElementById('message-form').style.display = 'none';
+                });
+                
+                // Message events
+                socket.on('message', function(data) {
+                    log(`Message received: ${JSON.stringify(data)}`);
+                    
+                    const messagesEl = document.getElementById('messages');
+                    const msgEl = document.createElement('div');
+                    msgEl.className = `message ${data.sender}`;
+                    msgEl.innerHTML = `
+                        <div><strong>${data.sender}</strong></div>
+                        <div>${data.content}</div>
+                    `;
+                    messagesEl.appendChild(msgEl);
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                });
+                
+                socket.on('room_joined', function(data) {
+                    log(`Joined room: ${JSON.stringify(data)}`);
+                    document.getElementById('message-form').style.display = 'block';
+                });
+                
+                socket.on('error', function(err) {
+                    log(`Server error: ${JSON.stringify(err)}`);
+                });
+            } catch (e) {
+                log(`Error creating socket: ${e.message}`);
+                updateStatus(`Fatal error: ${e.message}`, true);
+            }
+        });
+        
+        // Join room button
+        document.getElementById('join-btn').addEventListener('click', function() {
+            const sessionId = document.getElementById('session-input').value.trim();
+            
+            if (!sessionId) {
+                log('Error: Session ID is required');
+                return;
+            }
+            
+            if (!window.socket || !window.socket.connected) {
+                log('Error: Not connected to server');
+                return;
+            }
+            
+            // Extract user ID from token
+            const token = document.getElementById('token-input').value;
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const userId = payload.sub;
+            
+            log(`Joining session: ${sessionId}`);
+            
+            window.socket.emit('join_room', {
+                session_id: sessionId,
+                user_id: userId
+            });
+        });
+        
+        // Send message button
+        document.getElementById('send-btn').addEventListener('click', function() {
+            sendMessage();
+        });
+        
+        // Also send message on Enter key
+        document.getElementById('message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        function sendMessage() {
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value.trim();
+            const sessionId = document.getElementById('session-input').value.trim();
+            
+            if (!message) {
+                return;
+            }
+            
+            if (!window.socket || !window.socket.connected) {
+                log('Error: Not connected to server');
+                return;
+            }
+            
+            // Extract user ID from token
+            const token = document.getElementById('token-input').value;
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const userId = payload.sub;
+            
+            // Send the message
+            log(`Sending message: ${message}`);
+            
+            window.socket.emit('message', {
+                session_id: sessionId,
+                user_id: userId,
+                content: message
+            });
+            
+            // Clear input
+            messageInput.value = '';
+        }
+    </script>
+</body>
+</html>
