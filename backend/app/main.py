@@ -48,13 +48,13 @@ def read_api_root():
     }
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health_check():
     """Health check endpoint to verify the API is running."""
     return {"status": "healthy"}
 
 
-@app.get("/db-test")
+@app.get("/api/db-test")
 def db_test(db: Session = Depends(db_dependency)):
     """Test the database connection."""
     try:
