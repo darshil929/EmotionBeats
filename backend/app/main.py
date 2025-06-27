@@ -11,6 +11,8 @@ from app.dependencies import db_dependency
 from app.api.routes import auth, spotify, jwt
 from app.middleware.csrf import setup_csrf_middleware
 from app.core.security import JWT_SECRET_KEY
+from app.services.socketio.server import socketio_server
+from app.core.redis import health_check_redis
 
 # Initialize FastAPI application
 app = FastAPI(title="EmotionBeats API")
@@ -26,6 +28,9 @@ app.add_middleware(
 
 # Configure CSRF protection
 setup_csrf_middleware(app, JWT_SECRET_KEY)
+
+# Mount Socket.io server
+socketio_server.mount_to_fastapi(app, path="/ws")
 
 # Include routers
 app.include_router(auth.router)
@@ -44,14 +49,23 @@ def read_root():
 def read_api_root():
     """Return a message with available API endpoints."""
     return {
-        "message": "EmotionBeats API - Available endpoints: /api/auth/spotify/login, /api/spotify/*"
+        "message": "EmotionBeats API - Available endpoints: /api/auth/spotify/login, /api/spotify/*, /ws (Socket.IO)"
     }
 
 
 @app.get("/api/health")
-def health_check():
+async def health_check():
     """Health check endpoint to verify the API is running."""
-    return {"status": "healthy"}
+    redis_status = await health_check_redis()
+
+    return {
+        "status": "healthy",
+        "services": {
+            "api": "online",
+            "redis": redis_status,
+            "socketio": "online" if socketio_server._initialized else "offline",
+        },
+    }
 
 
 @app.get("/api/db-test")
