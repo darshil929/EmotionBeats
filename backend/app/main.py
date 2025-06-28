@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.dependencies import db_dependency
-from app.api.routes import auth, spotify, jwt
+from app.api.routes import (
+    auth,
+    spotify,
+    jwt,
+    chat,
+)
 from app.middleware.csrf import setup_csrf_middleware
 from app.core.security import JWT_SECRET_KEY
 from app.services.socketio.server import socketio_server
@@ -20,7 +25,7 @@ app = FastAPI(title="EmotionBeats API")
 # Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://localhost", "http://localhost:3000"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,6 +41,7 @@ socketio_server.mount_to_fastapi(app, path="/ws")
 app.include_router(auth.router)
 app.include_router(spotify.router)
 app.include_router(jwt.router)
+app.include_router(chat.router)
 
 
 @app.get("/")

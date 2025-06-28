@@ -123,10 +123,9 @@ async def spotify_callback(
         )
 
         # Redirect to frontend with success and include tokens in query params
-        # This allows the frontend to store tokens in session/local storage if needed
         return RedirectResponse(
-            url=f"https://localhost/auth/success?user_id={user.id}&access_token={access_token}&refresh_token={refresh_token}",
-            status_code=303,  # See Other
+            url=f"http://localhost:3000/auth/success?user_id={user.id}&access_token={access_token}&refresh_token={refresh_token}",
+            status_code=303,
         )
 
     except Exception as e:
