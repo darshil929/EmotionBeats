@@ -32,7 +32,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/emotionbeats
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
-      - SPOTIFY_REDIRECT_URI=http://localhost:8000/api/auth/spotify/callback
+      - SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - REDIS_URL=redis://redis:6379/0
       - SOCKETIO_REDIS_URL=redis://redis:6379/1
@@ -40,6 +40,7 @@ services:
       - SOCKETIO_PING_TIMEOUT=60
       - SOCKETIO_PING_INTERVAL=25
       - ENVIRONMENT=development
+      - TESTING=True
     user: "1000:1000"
     depends_on:
       - db

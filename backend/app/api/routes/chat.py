@@ -67,10 +67,16 @@ async def create_chat_session(
         },
     )
 
+    # Store the room_id in the database session
+    db_session.socketio_room_id = room_id
+    db.commit()
+    db.refresh(db_session)
+
     return {
         "id": str(db_session.id),
         "session_identifier": session_identifier,
         "room_id": room_id,
+        "socketio_room_id": room_id,
         "created_at": now,
         "is_active": True,
     }
@@ -205,10 +211,10 @@ async def create_chat_message(
     # Create Socket.io message
     socketio_message = {
         "id": str(db_message.id),
-        "room_id": str(session.id),
+        "room_id": session.socketio_room_id or str(session.id),
         "content": content,
         "sender_id": str(user.id),
-        "sender_sid": "api",  # Message sent via API, not Socket.io
+        "sender_sid": "api",
         "message_type": "chat",
         "timestamp": now.isoformat(),
         "metadata": {"db_message_id": str(db_message.id), "sent_via": "api"},
