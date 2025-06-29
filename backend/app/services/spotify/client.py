@@ -12,7 +12,7 @@ from app.schemas.spotify import (
     SpotifyAudioFeatures,
 )
 from app.services.spotify.auth import SpotifyAuthService
-from app.utils.datetime_helper import utc_now
+from app.utils.datetime_helper import utc_now, make_aware
 
 BASE_URL = "https://api.spotify.com/v1"
 
@@ -38,7 +38,8 @@ class SpotifyClient:
             raise ValueError("User not authenticated with Spotify")
 
         # Check if token is expired
-        if user.spotify_token_expiry and user.spotify_token_expiry <= utc_now():
+        token_expiry = make_aware(user.spotify_token_expiry)
+        if token_expiry and token_expiry <= utc_now():
             if not user.spotify_refresh_token:
                 raise ValueError("Refresh token not available")
 
