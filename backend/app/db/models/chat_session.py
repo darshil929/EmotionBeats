@@ -12,6 +12,7 @@ class ChatSession(Base):
     session_identifier = Column(String(50), unique=True, nullable=False)
     start_timestamp = Column(DateTime, nullable=False)
     end_timestamp = Column(DateTime, nullable=True)
+    socketio_room_id = Column(String(100), nullable=True)
 
     # Emotions detected during session
     detected_emotions = Column(JSON, default=dict)
