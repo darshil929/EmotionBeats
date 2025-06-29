@@ -40,6 +40,7 @@ services:
       - SOCKETIO_PING_TIMEOUT=60
       - SOCKETIO_PING_INTERVAL=25
       - ENVIRONMENT=development
+      - TESTING=True
     user: "1000:1000"
     depends_on:
       - db
