@@ -12,7 +12,7 @@ from app.schemas.spotify import (
     SpotifyAudioFeatures,
 )
 from app.services.spotify.auth import SpotifyAuthService
-from app.utils.datetime_helper import utc_now
+from app.utils.datetime_helper import utc_now, make_aware
 
 BASE_URL = "https://api.spotify.com/v1"
 
@@ -38,7 +38,8 @@ class SpotifyClient:
             raise ValueError("User not authenticated with Spotify")
 
         # Check if token is expired
-        if user.spotify_token_expiry and user.spotify_token_expiry <= utc_now():
+        token_expiry = make_aware(user.spotify_token_expiry)
+        if token_expiry and token_expiry <= utc_now():
             if not user.spotify_refresh_token:
                 raise ValueError("Refresh token not available")
 
@@ -163,7 +164,16 @@ class SpotifyClient:
         target_features: Optional[Dict[str, float]] = None,
     ) -> List[SpotifyTrack]:
         """Get track recommendations based on seeds and target features."""
-        params = {"limit": limit}
+        params = {
+            "limit": limit,
+            "market": "US",  # Add market parameter
+        }
+
+        # Ensure at least one seed is provided
+        if not any([seed_tracks, seed_artists, seed_genres]):
+            raise ValueError(
+                "At least one seed (tracks, artists, or genres) is required"
+            )
 
         # Add seeds (at least one type of seed is required)
         if seed_tracks:
@@ -177,6 +187,9 @@ class SpotifyClient:
         if target_features:
             for key, value in target_features.items():
                 params[f"target_{key}"] = value
+
+        # Debug logging
+        print(f"DEBUG: Final recommendations URL params: {params}")
 
         data = await self._request("GET", "/recommendations", params=params)
         return [SpotifyTrack(**item) for item in data.get("tracks", [])]
