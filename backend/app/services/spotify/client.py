@@ -164,7 +164,16 @@ class SpotifyClient:
         target_features: Optional[Dict[str, float]] = None,
     ) -> List[SpotifyTrack]:
         """Get track recommendations based on seeds and target features."""
-        params = {"limit": limit}
+        params = {
+            "limit": limit,
+            "market": "US",  # Add market parameter
+        }
+
+        # Ensure at least one seed is provided
+        if not any([seed_tracks, seed_artists, seed_genres]):
+            raise ValueError(
+                "At least one seed (tracks, artists, or genres) is required"
+            )
 
         # Add seeds (at least one type of seed is required)
         if seed_tracks:
@@ -178,6 +187,9 @@ class SpotifyClient:
         if target_features:
             for key, value in target_features.items():
                 params[f"target_{key}"] = value
+
+        # Debug logging
+        print(f"DEBUG: Final recommendations URL params: {params}")
 
         data = await self._request("GET", "/recommendations", params=params)
         return [SpotifyTrack(**item) for item in data.get("tracks", [])]

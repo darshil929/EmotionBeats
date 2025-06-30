@@ -113,6 +113,12 @@ async def get_recommendations(
         if target_acousticness is not None:
             target_features["acousticness"] = target_acousticness
 
+        # ADD DEBUGGING
+        print(
+            f"DEBUG: Recommendations request - seeds: tracks={seed_tracks_list}, artists={seed_artists_list}, genres={seed_genres_list}"
+        )
+        print(f"DEBUG: Target features: {target_features}")
+
         return await client.get_recommendations(
             seed_tracks=seed_tracks_list,
             seed_artists=seed_artists_list,
@@ -121,4 +127,35 @@ async def get_recommendations(
             target_features=target_features,
         )
     except Exception as e:
+        # ADD DETAILED ERROR LOGGING
+        import traceback
+
+        print(f"ERROR in get_recommendations: {str(e)}")
+        print(f"ERROR type: {type(e)}")
+        print(f"ERROR traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/debug-token")
+async def debug_token(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Debug endpoint to check token status."""
+    try:
+        from app.db.models import User
+
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return {"error": "User not found"}
+
+        return {
+            "user_id": str(user.id),
+            "spotify_access_token": user.spotify_access_token,
+            "has_token": bool(user.spotify_access_token),
+            "token_length": len(user.spotify_access_token)
+            if user.spotify_access_token
+            else 0,
+        }
+    except Exception as e:
+        return {"error": str(e)}
